@@ -13,44 +13,34 @@ const Home = () => {
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(4);
   const [totalPages, setTotalPages] = useState(0);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState("desc");
   const [cart, setCart] = useState(0);
   const [cartItems, setCartItems] = useState([]);
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const getProducts = async () => {
       try {
-        setLoading(true);
         const response = await axios.get("/products", {
           params: {
             page: page,
             limit: limit,
-            sortField: sortField,
-            sortOrder: sortOrder,
+            sortField: "createdAt",
+            sortOrder: "desc",
           },
         });
         const data = response.data;
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setProducts(data.products);
-          setPage(data.page);
-          setLimit(data.limit);
-          setTotalPages(data.totalPages);
-          setMessage(`${data.products.length} items found`);
-        }
-        setLoading(false);
+        setProducts(data.products);
+        setPage(data.page);
+        setLimit(data.limit);
+        setTotalPages(data.totalPages);
+        setMessage(`${data.products.length} items found`);
       } catch (error) {
-        setError(error.message || "Failed to fetch products");
+        setMessage(error.message || "Failed to fetch products");
       }
     };
 
     getProducts();
-  }, [page, limit, sortField, sortOrder]);
+  }, [page, limit]);
 
   useEffect(() => {
     const getDetails = async () => {
@@ -72,7 +62,7 @@ const Home = () => {
           setCart(data.user.cart.length);
         }
       } catch (error) {
-        setError(error.message);
+        setMessage(error.message);
       }
     };
 
@@ -81,8 +71,8 @@ const Home = () => {
     }
   }, []);
 
-  const searchProduct = async (event) => {
-    event.preventDefault();
+  const searchProduct = async (e) => {
+    e.preventDefault();
     if (search.trim() === "") {
       setMessage("Please enter a search term");
       return;
@@ -90,19 +80,15 @@ const Home = () => {
     try {
       const response = await fetch(`/search/${search}`);
       const data = await response.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setProducts(data);
-        setMessage(`${data.length} products found`);
-      }
+      setProducts(data);
+      setMessage(`${data.length} products found`);
     } catch (error) {
-      setError(error.message);
+      setMessage(error.message);
     }
   };
 
-  const addToCart = async (event, product) => {
-    event.preventDefault();
+  const addToCart = async (e, product) => {
+    e.preventDefault();
     try {
       const response = await fetch("/user/cart", {
         method: "POST",
@@ -113,14 +99,10 @@ const Home = () => {
         body: JSON.stringify({ productId: product._id, quantity: 1 }),
       });
       const data = await response.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setCart(data.totalItems);
-        alert("Product added to cart");
-      }
+      setCart(data.totalItems);
+      alert("Product added to cart");
     } catch (error) {
-      setError(error.message);
+      setMessage(error.message);
     }
   };
 
@@ -130,10 +112,10 @@ const Home = () => {
   };
 
   const getCart = async () => {
+    if (cart === 0) {
+      return;
+    }
     try {
-      if (cart === 0) {
-        return;
-      }
       const response = await fetch("/cart", {
         method: "GET",
         headers: {
@@ -142,13 +124,9 @@ const Home = () => {
         },
       });
       const data = await response.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setCartItems(data.cartItems);
-      }
+      setCartItems(data.cartItems);
     } catch (error) {
-      setError(error.message);
+      setMessage(error.message);
     }
   };
 
@@ -174,9 +152,7 @@ const Home = () => {
             key={index}
             className={`${page === index ? "bg-sky-300" : "bg-sky-600"
               } text-white px-4 py-2 rounded-md`}
-            onClick={() => {
-              setPage(index);
-            }}
+            onClick={() => setPage(index)}
           >
             {index}
           </button>
@@ -195,7 +171,6 @@ const Home = () => {
       </div>
     );
   };
-  
 
   return (
     <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
