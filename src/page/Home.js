@@ -4,57 +4,53 @@ import { BsCart2, BsSearch } from "react-icons/bs";
 import { RiLogoutCircleRLine } from "react-icons/ri";
 
 const Home = () => {
-  const siteTitle = "Shop Sphere";
+  const siteTitle = "EcomHub";
   const [cardHover, setCardHover] = useState(-1);
   const [showCart, setShowCart] = useState(false);
   const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
-  const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(4);
   const [totalPages, setTotalPages] = useState(0);
-  // eslint-disable-next-line
   const [sortField, setSortField] = useState("createdAt");
-  // eslint-disable-next-line
   const [sortOrder, setSortOrder] = useState("desc");
   const [cart, setCart] = useState(0);
   const [cartItems, setCartItems] = useState([]);
-
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const getProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("/products", {
-        params: {
-          page: page,
-          limit: limit,
-          sortField: "createdAt",
-          sortOrder: "desc",
-        },
-      });
-      const data = await response.data;
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setProducts(data.products);
-        setPage(data.page);
-        setLimit(data.limit);
-        setTotalPages(data.totalPages);
-        setMessage(`${data.products.length} items found`);
-      }
-      setLoading(false);
-    } catch (error) {
-      setError(error.message || "Failed to fetch products");
-    }
-  };
-
   useEffect(() => {
+    const getProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get("/products", {
+          params: {
+            page: page,
+            limit: limit,
+            sortField: sortField,
+            sortOrder: sortOrder,
+          },
+        });
+        const data = response.data;
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setProducts(data.products);
+          setPage(data.page);
+          setLimit(data.limit);
+          setTotalPages(data.totalPages);
+          setMessage(`${data.products.length} items found`);
+        }
+        setLoading(false);
+      } catch (error) {
+        setError(error.message || "Failed to fetch products");
+      }
+    };
+
     getProducts();
-  }, [page, limit]); // Dependencies that trigger the effect
+  }, [page, limit, sortField, sortOrder]);
 
   useEffect(() => {
     const getDetails = async () => {
@@ -70,109 +66,43 @@ const Home = () => {
         if (response.status === 404 || response.status === 500) {
           localStorage.removeItem("token");
           window.location.href = "/";
+        } else {
+          const data = await response.json();
+          setUser(data.user);
+          setCart(data.user.cart.length);
         }
-        const data = await response.json();
-        setUser(data.user);
-        setCart(data.user.cart.length);
       } catch (error) {
-        setError(error.message || "Failed to fetch user details");
+        setError(error.message);
       }
     };
 
-    getDetails();
-  }, []); // Empty dependency array to run only once after the initial render
-
-  const getPagination = () => {
-    if (totalPages === 0) {
-      return null;
+    if (localStorage.getItem("token")) {
+      getDetails();
     }
-    return (
-      <div className="flex justify-center items-center mt-4 mb-10 gap-2">
-        <button
-          className={`${
-            page === 1 ? "bg-sky-300" : "bg-sky-600"
-          } text-white px-4 py-2 rounded-l`}
-          onClick={() => {
-            if (page > 1) {
-              setPage(page - 1);
-            }
-          }}
-        >
-          Prev
-        </button>
-        {Array(totalPages)
-          .fill(0)
-          .map((_, index) => (
-            <button
-              key={index + 1}
-              className={`${
-                page === index + 1 ? "bg-sky-300" : "bg-sky-600"
-              } text-white px-4 py-2 rounded-md`}
-              onClick={() => {
-                setPage(index + 1);
-              }}
-            >
-              {index + 1}
-            </button>
-          ))}
-        <button
-          className={`${
-            page === totalPages ? "bg-sky-300" : "bg-sky-600"
-          } text-white px-4 py-2 rounded-r`}
-          onClick={() => {
-            if (page < totalPages) {
-              setPage(page + 1);
-            }
-          }}
-        >
-          Next
-        </button>
-      </div>
-    );
-  };
+  }, []);
 
- 
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  const getDetails = async () => {
+  const searchProduct = async (event) => {
+    event.preventDefault();
+    if (search.trim() === "") {
+      setMessage("Please enter a search term");
+      return;
+    }
     try {
-      const response = await fetch("/user/details", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "auth-token": localStorage.getItem("token"),
-        },
-      });
-
-      if (response.status === 404 || response.status === 500) {
-        localStorage.removeItem("token");
-        window.location.href = "/";
-      }
+      const response = await fetch(`/search/${search}`);
       const data = await response.json();
-      setUser(data.user);
-      setCart(data.user.cart.length);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setProducts(data);
+        setMessage(`${data.length} products found`);
+      }
     } catch (error) {
-      setError(error);
+      setError(error.message);
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
-
-  const addToCart = async (e, product) => {
-    e.preventDefault();
+  const addToCart = async (event, product) => {
+    event.preventDefault();
     try {
       const response = await fetch("/user/cart", {
         method: "POST",
@@ -190,45 +120,19 @@ const Home = () => {
         alert("Product added to cart");
       }
     } catch (error) {
-      setError(error);
+      setError(error.message);
     }
   };
 
-  const userLogout = async (e) => {
-    e.preventDefault();
-    try {
-      localStorage.removeItem("token");
-      window.location.href = "/";
-    } catch (error) {
-      setError(error);
-    }
-  };
-
-  const searchProduct = async (e) => {
-    e.preventDefault();
-    setCategory("");
-    if (search === "") {
-      setMessage("Please enter a search term");
-      return;
-    }
-    try {
-      const response = await fetch(`/search/${search}`);
-      const data = await response.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setMessage(data.length + " products found");
-        setProducts(data);
-      }
-    } catch (error) {
-      setError(error);
-    }
+  const userLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/";
   };
 
   const getCart = async () => {
     try {
       if (cart === 0) {
-        return null;
+        return;
       }
       const response = await fetch("/cart", {
         method: "GET",
@@ -244,9 +148,54 @@ const Home = () => {
         setCartItems(data.cartItems);
       }
     } catch (error) {
-      setError(error);
+      setError(error.message);
     }
   };
+
+  const getPagination = () => {
+    if (totalPages === 0) {
+      return null;
+    }
+    return (
+      <div className="flex justify-center items-center mt-4 mb-10 gap-2">
+        <button
+          className={`${page === 1 ? "bg-sky-300" : "bg-sky-600"
+            } text-white px-4 py-2 rounded-l`}
+          onClick={() => {
+            if (page > 1) {
+              setPage(page - 1);
+            }
+          }}
+        >
+          Prev
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(index => (
+          <button
+            key={index}
+            className={`${page === index ? "bg-sky-300" : "bg-sky-600"
+              } text-white px-4 py-2 rounded-md`}
+            onClick={() => {
+              setPage(index);
+            }}
+          >
+            {index}
+          </button>
+        ))}
+        <button
+          className={`${page === totalPages ? "bg-sky-300" : "bg-sky-600"
+            } text-white px-4 py-2 rounded-r`}
+          onClick={() => {
+            if (page < totalPages) {
+              setPage(page + 1);
+            }
+          }}
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+  
 
   return (
     <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
